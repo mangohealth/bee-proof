@@ -1,3 +1,5 @@
+.idea
+bee-proof-tmp/
 target/
 pom.xml.tag
 pom.xml.releaseBackup
