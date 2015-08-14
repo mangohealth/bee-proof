@@ -6,7 +6,7 @@
 
     <groupId>org.mangohealth</groupId>
     <artifactId>bee-proof</artifactId>
-    <version>1.0.0-hive-${emr.version}</version>
+    <version>1.0.0-emr-${emr.version}</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -19,7 +19,7 @@
                 <activeByDefault>true</activeByDefault>
             </activation>
             <properties>
-                <emr.version>emr-3</emr.version>
+                <emr.version>3</emr.version>
                 <hive.version>0.13.1</hive.version>
                 <hadoop.version>2.4.0</hadoop.version>
             </properties>
@@ -27,7 +27,7 @@
         <profile>
             <id>emr-4</id>
             <properties>
-                <emr.version>emr-4</emr.version>
+                <emr.version>4</emr.version>
                 <hive.version>1.0.0</hive.version>
                 <hadoop.version>2.6.0</hadoop.version>
             </properties>
