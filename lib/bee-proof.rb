@@ -1,5 +1,7 @@
 module BeeProof
 
+  BASE_DIR = File.dirname(__FILE__)
+
   # Note that,for now, this is linux/bsd specific
   def self.run_for_release(emr_release, *params)
     cmd = 
@@ -11,8 +13,8 @@ module BeeProof
                 '"',
                 [
                   jar_file_for_release(emr_release),
-                  Dir["lib/#{emr_release}-deps/*.jar"],
-                  Dir['lib/emr-common-deps/*.jar']
+                  Dir["#{BASE_DIR}/#{emr_release}-deps/*.jar"],
+                  Dir["#{BASE_DIR}/emr-common-deps/*.jar"]
                 ].flatten.join(':'),
                 '"'
             ].join(''),
@@ -30,7 +32,7 @@ module BeeProof
   end
 
   def self.jar_file_for_release(emr_release)
-    File.expand_path("bee-proof-1.0.0-#{emr_release}.jar", File.dirname(__FILE__))
+    File.expand_path("bee-proof-1.0.0-#{emr_release}.jar", BASE_DIR)
   end
   
 private
@@ -59,3 +61,5 @@ unless BeeProof.java_bin_path
 end
 
 require_relative 'bee-proof/verification'
+
+BeeProof.run_for_release('emr-3', '/tmp/bee-proof-manifest.json')
