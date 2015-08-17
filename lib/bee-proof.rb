@@ -61,5 +61,3 @@ unless BeeProof.java_bin_path
 end
 
 require_relative 'bee-proof/verification'
-
-BeeProof.run_for_release('emr-3', '/tmp/bee-proof-manifest.json')
