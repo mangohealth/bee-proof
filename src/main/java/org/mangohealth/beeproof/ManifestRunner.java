@@ -1,6 +1,5 @@
 package org.mangohealth.beeproof;
 
-import com.sun.tools.javac.util.List;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.hive.cli.CliDriver;
 import org.apache.hadoop.hive.cli.CliSessionState;
@@ -75,10 +74,10 @@ public class ManifestRunner {
      * good if you only wish to verify HiveQL syntax.
      */
     protected void blockMapReduceTasks() {
-        List<String> tasksToBlock = List.of(
+        String[] tasksToBlock = {
                 "org.apache.hadoop.hive.ql.exec.mr.MapRedTask",
                 "org.apache.hadoop.hive.ql.exec.mr.MapredLocalTask"
-        );
+        };
 
         for (String taskToBlock : tasksToBlock) {
             ClassPatchUtil.blockClassMethod(taskToBlock, "execute", "{ return 0; }");
