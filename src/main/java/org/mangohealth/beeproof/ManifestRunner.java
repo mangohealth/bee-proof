@@ -75,8 +75,16 @@ public class ManifestRunner {
      */
     protected void blockMapReduceTasks() {
         String[] tasksToBlock = {
+                "org.apache.hadoop.hive.ql.exec.mr.ExecDriver",
                 "org.apache.hadoop.hive.ql.exec.mr.MapRedTask",
-                "org.apache.hadoop.hive.ql.exec.mr.MapredLocalTask"
+                "org.apache.hadoop.hive.ql.exec.mr.MapredLocalTask",
+                "org.apache.hadoop.hive.ql.exec.MoveTask",
+                "org.apache.hadoop.hive.ql.exec.FetchTask",
+                "org.apache.hadoop.hive.ql.exec.CopyTask",
+                "org.apache.hadoop.hive.ql.exec.tez.TezTask",
+                "org.apache.hadoop.hive.ql.io.rcfile.merge.BlockMergeTask",
+                "org.apache.hadoop.hive.ql.io.rcfile.truncate.ColumnTruncateTask",
+                "org.apache.hadoop.hive.ql.io.rcfile.stats.PartialScanTask"
         };
 
         for (String taskToBlock : tasksToBlock) {
