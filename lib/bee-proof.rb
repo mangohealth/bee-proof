@@ -21,7 +21,9 @@ module BeeProof
             'org.mangohealth.beeproof.ManifestRunner',
             *params
         ].join(' ')
-    system(cmd)
+
+    # Make sure ruby proc fails if java proc fails
+    exit 1 unless system(cmd)
   end
   
   def self.java_bin_path
