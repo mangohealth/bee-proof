@@ -1,5 +1,6 @@
 package org.mangohealth.beeproof;
 
+import javassist.NotFoundException;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.hive.cli.CliDriver;
 import org.apache.hadoop.hive.cli.CliSessionState;
@@ -88,7 +89,12 @@ public class ManifestRunner {
         };
 
         for (String taskToBlock : tasksToBlock) {
-            ClassPatchUtil.blockClassMethod(taskToBlock, "execute", "{ return 0; }");
+            try {
+                ClassPatchUtil.blockClassMethod(taskToBlock, "execute", "{ return 0; }");
+            }
+            catch(Exception ex) {
+                output.println("[WARN] Could not block task for this EMR release:  " + taskToBlock);
+            }
         }
     }
 
