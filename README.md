@@ -61,7 +61,9 @@ Using bundler, you can add a dependecy on bee-proof via a line like:
 gem 'bee-proof', :github => 'mangohealth/bee-proof'
 ```
 
-You can then run a verification like so:
+Before running any ruby code using bee-proof, you must be sure that there is either java process on the PATH for the shell you're executing in or a JAVA_HOME environment variable defined.  The JAVA_HOME variable will take higher precedence than a java process on the path.
+
+Given that, you can then run a verification like so:
 
 ```ruby
 require 'bee-proof'
