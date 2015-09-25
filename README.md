@@ -64,6 +64,7 @@ gem 'bee-proof', :github => 'mangohealth/bee-proof'
 You can then run a verification like so:
 
 ```ruby
+require 'bee-proof'
 verification = BeeProof::Verification.for_emr_4
 verification.add_task('<path-to-script>', 'i_am_a_hive_variable' => 'I have a value!')
 verification.run
