@@ -15,8 +15,8 @@ For one, this is great if you want to test all your scripts against the particul
 ## What EMR releases are supported? How do you specify which to use?
 The currently supported releases are:
 
-1. Release 3.?
-2. Release 4
+1. AMI 3.9.0, which is referred to as 'emr-3'
+2. Release 4.0.0, which is referred to as 'emr-4'
 
 We may remove support for older releases in the future so as to avoid building a massive collection of JAR files in the repo.  If you have a need to test on an older EMR release, then please check out an older version of the repo.
 
