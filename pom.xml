@@ -15,9 +15,6 @@
     <profiles>
         <profile>
             <id>emr-3</id>
-            <activation>
-                <activeByDefault>true</activeByDefault>
-            </activation>
             <properties>
                 <emr.version>3</emr.version>
                 <hive.version>0.13.1</hive.version>
@@ -26,6 +23,9 @@
         </profile>
         <profile>
             <id>emr-4</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
             <properties>
                 <emr.version>4</emr.version>
                 <hive.version>1.0.0</hive.version>

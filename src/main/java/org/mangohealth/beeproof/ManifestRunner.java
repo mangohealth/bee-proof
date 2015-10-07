@@ -1,6 +1,6 @@
 package org.mangohealth.beeproof;
 
-import javassist.NotFoundException;
+import com.google.common.collect.Sets;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.hive.cli.CliDriver;
 import org.apache.hadoop.hive.cli.CliSessionState;
@@ -16,11 +16,16 @@ import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
 import java.nio.file.Paths;
 import java.util.Map;
+import java.util.Set;
 
 /**
- * TODO
+ * Main entry point for running EMR-like task manifests.
  */
 public class ManifestRunner {
+
+    private static final Set emrConfigs = Sets.newHashSet(
+            "hive.optimize.s3.query"
+    );
 
     private final PrintStream output;
     private final String manifestFilePath;
@@ -41,6 +46,7 @@ public class ManifestRunner {
         }
 
         patchCliLogging();
+        patchForEmrHiveConf();
         initializeHiveSession();
 
         for(FakeEmrManifest.Task task : manifest.getTasks()) {
@@ -83,19 +89,57 @@ public class ManifestRunner {
                 "org.apache.hadoop.hive.ql.exec.FetchTask",
                 "org.apache.hadoop.hive.ql.exec.CopyTask",
                 "org.apache.hadoop.hive.ql.exec.tez.TezTask",
+                "org.apache.hadoop.hive.ql.exec.DependencyCollectionTask",
+                "org.apache.hadoop.hive.ql.exec.ExplainSQRewriteTask",
+                "org.apache.hadoop.hive.ql.exec.StatsTask",
+                "org.apache.hadoop.hive.ql.exec.ExplainTask",
+                "org.apache.hadoop.hive.ql.exec.ColumnStatsUpdateTask",
+                "org.apache.hadoop.hive.ql.exec.ConditionalTask",
+                "org.apache.hadoop.hive.ql.exec.StatsNoJobTask",
+                "org.apache.hadoop.hive.ql.index.IndexMetadataChangeTask",
                 "org.apache.hadoop.hive.ql.io.rcfile.merge.BlockMergeTask",
                 "org.apache.hadoop.hive.ql.io.rcfile.truncate.ColumnTruncateTask",
-                "org.apache.hadoop.hive.ql.io.rcfile.stats.PartialScanTask"
+                "org.apache.hadoop.hive.ql.io.rcfile.stats.PartialScanTask",
+                "org.apache.hadoop.hive.ql.io.merge.MergeFileTask"
         };
+
+        ClassPatchUtil.prependClassMethod(
+                "org.apache.hadoop.hive.ql.exec.Task",
+                "executeTask",
+                "{ org.apache.hadoop.hive.ql.session.SessionState.get().out.println(\"> Running task:  \" + this.getClass()); }"
+        );
 
         for (String taskToBlock : tasksToBlock) {
             try {
-                ClassPatchUtil.blockClassMethod(taskToBlock, "execute", "{ return 0; }");
+                ClassPatchUtil.blockClassMethod(
+                        taskToBlock,
+                        "execute",
+                        "{ org.apache.hadoop.hive.ql.session.SessionState.get().out.println(\"> Skipped!\"); return 0; }"
+                );
             }
             catch(Exception ex) {
                 output.println("[WARN] Could not block task for this EMR release:  " + taskToBlock);
             }
         }
+    }
+
+    public static String emrHiveConfStripper(String name) {
+        if(emrConfigs.contains(name.toLowerCase())) {
+            return "emrhive." + name.substring(5);
+        }
+
+        return name;
+    }
+
+    protected void patchForEmrHiveConf() {
+        ClassPatchUtil.prependClassMethod(
+                "org.apache.hadoop.hive.ql.processors.SetProcessor",
+                "setConf",
+                "{ " +
+                        "$1 = org.mangohealth.beeproof.ManifestRunner.emrHiveConfStripper($1); " +
+                        "$2 = org.mangohealth.beeproof.ManifestRunner.emrHiveConfStripper($2); " +
+                "}"
+        );
     }
 
     /**
