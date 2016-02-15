@@ -4,6 +4,9 @@ import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.CtMethod;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+
 /**
  * Easy to use wrapper for on-the-fly class patching
  */
@@ -58,6 +61,21 @@ public class ClassPatchUtil {
                     .append("method=").append(method).append(", ")
                     .append("body=").append(body);
             throw new RuntimeException(errMsg.toString(), ex);
+        }
+    }
+
+    public static void setFinalStatic(Class<?> clazz, String fieldName, Object newValue) {
+        try {
+            Field field = clazz.getDeclaredField(fieldName);
+            field.setAccessible(true);
+
+            Field modifiersField = Field.class.getDeclaredField("modifiers");
+            modifiersField.setAccessible(true);
+            modifiersField.setInt(field, field.getModifiers() & ~Modifier.FINAL);
+
+            field.set(null, newValue);
+        } catch(Exception ex) {
+            throw new RuntimeException("Could not alter constant '" + fieldName + "' on class " + clazz, ex);
         }
     }
 

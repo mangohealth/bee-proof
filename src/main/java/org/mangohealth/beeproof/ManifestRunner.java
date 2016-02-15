@@ -18,6 +18,8 @@ import java.nio.file.Paths;
 import java.util.Map;
 import java.util.Set;
 
+import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.*;
+
 /**
  * Main entry point for running EMR-like task manifests.
  */
@@ -109,6 +111,14 @@ public class ManifestRunner {
                 "{ org.apache.hadoop.hive.ql.session.SessionState.get().out.println(\"> Running task:  \" + this.getClass()); }"
         );
 
+        // Force exec parallel to off despite what script says as this will always *massively* slow down execution in
+        // these fake, simulated cases
+        ClassPatchUtil.prependClassMethod(
+                "org.apache.hadoop.hive.ql.Driver",
+                "launchTask",
+                "{ org.apache.hadoop.hive.conf.HiveConf.setBoolVar(conf, org.apache.hadoop.hive.conf.HiveConf.ConfVars.EXECPARALLEL, false); }"
+        );
+
         for (String taskToBlock : tasksToBlock) {
             try {
                 ClassPatchUtil.blockClassMethod(
@@ -167,14 +177,36 @@ public class ManifestRunner {
             String workingDir = Paths.get(workBaseDir, "bee-proof-tmp").toString();
             String metastoreDir = Paths.get(workingDir,  "metastore_db").toString();
             String warehouseDir = Paths.get(workingDir, "warehouse").toString();
+            String scratchDir = Paths.get(workingDir, "scratch").toString();
+            String localScratchDir = Paths.get(workingDir, "local_scratch").toString();
+            String historyFileDir = Paths.get(workingDir, "tmp").toString();
+            String hadoopTmpDir = Paths.get(workingDir, "hadoop_tmp").toString();
+            String testLogDir = Paths.get(workingDir, "test_logs").toString();
             String derbyLogPath = Paths.get(workingDir, "derby.log").toString();
             FileUtils.deleteDirectory(new File(workingDir));
             FileUtils.forceMkdir(new File(workingDir));
 
             HiveConf conf = ss.getConf();
-                conf.setBoolVar(HiveConf.ConfVars.CLIIGNOREERRORS, false);
-                conf.setVar(HiveConf.ConfVars.METASTORECONNECTURLKEY, "jdbc:derby:" + metastoreDir + ";create=true");
-                conf.setVar(HiveConf.ConfVars.METASTOREWAREHOUSE, warehouseDir);
+                conf.setBoolVar(CLIIGNOREERRORS, false);
+                conf.setVar(METASTORECONNECTURLKEY, "jdbc:derby:" + metastoreDir + ";create=true");
+                conf.setVar(METASTOREWAREHOUSE, warehouseDir);
+                conf.setVar(SCRATCHDIR, scratchDir);
+                conf.setVar(LOCALSCRATCHDIR, localScratchDir);
+                conf.setVar(HIVEHISTORYFILELOC, historyFileDir);
+                conf.set("hadoop.tmp.dir", hadoopTmpDir);
+                conf.set("test.log.dir", testLogDir);
+                conf.setBoolVar(HIVE_WAREHOUSE_SUBDIR_INHERIT_PERMS, true);
+                conf.setBoolVar(HIVESTATSAUTOGATHER, false);
+                conf.setBoolVar(HIVE_SERVER2_LOGGING_OPERATION_ENABLED, false);
+                conf.setBoolVar(HIVE_INFER_BUCKET_SORT, false);
+                conf.setBoolVar(HIVEMETADATAONLYQUERIES, false);
+                conf.setBoolVar(HIVEOPTINDEXFILTER, false);
+                conf.setBoolVar(HIVECONVERTJOIN, false);
+                conf.setBoolVar(HIVESKEWJOIN, false);
+                conf.setLongVar(HIVECOUNTERSPULLINTERVAL, 1L);
+                conf.setBoolVar(HIVE_RPC_QUERY_PLAN, true);
+                conf.setBoolVar(HIVE_SUPPORT_CONCURRENCY, false);
+                conf.setVar(METASTORE_CONNECTION_POOLING_TYPE, "None");
             System.setProperty("derby.stream.error.file", derbyLogPath);
 
             ss.in = System.in;
