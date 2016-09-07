@@ -175,26 +175,16 @@ public class ManifestRunner {
             // TODO Make this configurable?  Default to somewhere special in /tmp?
             String workBaseDir = Paths.get("").toAbsolutePath().toString();
             String workingDir = Paths.get(workBaseDir, "bee-proof-tmp").toString();
-            String metastoreDir = Paths.get(workingDir,  "metastore_db").toString();
-            String warehouseDir = Paths.get(workingDir, "warehouse").toString();
-            String scratchDir = Paths.get(workingDir, "scratch").toString();
-            String localScratchDir = Paths.get(workingDir, "local_scratch").toString();
-            String historyFileDir = Paths.get(workingDir, "tmp").toString();
-            String hadoopTmpDir = Paths.get(workingDir, "hadoop_tmp").toString();
-            String testLogDir = Paths.get(workingDir, "test_logs").toString();
-            String derbyLogPath = Paths.get(workingDir, "derby.log").toString();
             FileUtils.deleteDirectory(new File(workingDir));
             FileUtils.forceMkdir(new File(workingDir));
 
             HiveConf conf = ss.getConf();
                 conf.setBoolVar(CLIIGNOREERRORS, false);
-                conf.setVar(METASTORECONNECTURLKEY, "jdbc:derby:" + metastoreDir + ";create=true");
-                conf.setVar(METASTOREWAREHOUSE, warehouseDir);
-                conf.setVar(SCRATCHDIR, scratchDir);
-                conf.setVar(LOCALSCRATCHDIR, localScratchDir);
-                conf.setVar(HIVEHISTORYFILELOC, historyFileDir);
-                conf.set("hadoop.tmp.dir", hadoopTmpDir);
-                conf.set("test.log.dir", testLogDir);
+                conf.setVar(METASTORECONNECTURLKEY, "jdbc:derby:" + Paths.get(workingDir, "metastore_db").toString() + ";create=true");
+                conf.setVar(METASTOREWAREHOUSE, Paths.get(workingDir, "warehouse").toString());
+                conf.setVar(SCRATCHDIR, Paths.get(workingDir, "scratch").toString());
+                conf.setVar(LOCALSCRATCHDIR, Paths.get(workingDir, "local_scratch").toString());
+                conf.setVar(HIVEHISTORYFILELOC, Paths.get(workingDir, "tmp").toString());
                 conf.setBoolVar(HIVE_WAREHOUSE_SUBDIR_INHERIT_PERMS, true);
                 conf.setBoolVar(HIVESTATSAUTOGATHER, false);
                 conf.setBoolVar(HIVE_SERVER2_LOGGING_OPERATION_ENABLED, false);
@@ -207,7 +197,13 @@ public class ManifestRunner {
                 conf.setBoolVar(HIVE_RPC_QUERY_PLAN, true);
                 conf.setBoolVar(HIVE_SUPPORT_CONCURRENCY, false);
                 conf.setVar(METASTORE_CONNECTION_POOLING_TYPE, "None");
-            System.setProperty("derby.stream.error.file", derbyLogPath);
+                conf.setBoolVar(METASTORE_AUTO_CREATE_ALL, true);
+
+            System.setProperty("hadoop.tmp.dir", Paths.get(workingDir, "hadoop_tmp").toString());
+            System.setProperty("mapred.system.dir", Paths.get(workingDir, "mapred_sys").toString());
+            System.setProperty("mapred.local.dir", Paths.get(workingDir, "mapred_local").toString());
+            System.setProperty("test.log.dir", Paths.get(workingDir, "test_logs").toString());
+            System.setProperty("derby.stream.error.file", Paths.get(workingDir, "derby.log").toString());
 
             ss.in = System.in;
             ss.out = this.output;

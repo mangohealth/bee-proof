@@ -17,6 +17,10 @@ module BeeProof
       new('emr-4')
     end
 
+    def self.for_emr_5
+      new('emr-5')
+    end
+
     def initialize(emr_release)
       @emr_release = emr_release
       @tasks = []
