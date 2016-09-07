@@ -14,8 +14,8 @@ module BeeProof
                 [
                   jar_file_for_release(emr_release),
                   Dir["#{BASE_DIR}/#{emr_release}-deps/*.jar"],
-                  Dir["#{BASE_DIR}/emr-common-deps/*.jar"]
-                ].flatten.join(':'),
+                  Dir["#{BASE_DIR}/emr-common-deps/*.jar"] unless emr_release == 'emr-5'
+                ].flatten.compact.join(':'),
                 '"'
             ].join(''),
             'org.mangohealth.beeproof.ManifestRunner',
