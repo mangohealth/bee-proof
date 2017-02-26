@@ -10,4 +10,5 @@ Gem::Specification.new do |s|
   s.homepage    =
     'https://github.com/mangohealth/bee-proof'
   s.license       = 'MIT'
+  s.add_dependency('naether', '0.15.0')
 end

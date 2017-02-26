@@ -2,6 +2,30 @@ module BeeProof
 
   BASE_DIR = File.dirname(__FILE__)
 
+  def self.java_cp_for_release(emr_release)
+    (@@java_cp_for_release ||= {})[emr_release] ||= begin
+        tmp_pom_path = File.join('/tmp/', "pom-#{emr_release}.xml")
+
+        # Prepare pom file for desired release
+        require 'rexml/document'
+        base_pom = REXML::Document.new(File.read(File.join(BASE_DIR, '..', 'pom.xml')))
+        release_profile = base_pom.root.elements["profiles/profile[id='#{emr_release}']"] ||
+            raise("No pom profile for release:  #{emr_release}")
+        release_profile.add_element('activation').add_element('activeByDefault').add_text('true')
+        File.write(tmp_pom_path, base_pom.to_s)
+
+        # Load maven dependencies for requested release profile
+        require 'naether/bootstrap'
+        Naether::Bootstrap.bootstrap_local_repo
+        naether = Naether.create
+        naether.add_pom_dependencies(tmp_pom_path)
+        naether.resolve_dependencies
+
+        # The -classpath to add manifest runner calls for this EMR release
+        naether.dependencies_classpath
+    end
+  end
+
   # Note that,for now, this is linux/bsd specific
   def self.run_for_release(emr_release, *params)
     cmd = 
@@ -13,8 +37,7 @@ module BeeProof
                 '"',
                 [
                   jar_file_for_release(emr_release),
-                  Dir["#{BASE_DIR}/#{emr_release}-deps/*.jar"],
-                  (Dir["#{BASE_DIR}/emr-common-deps/*.jar"] unless emr_release == 'emr-5')
+                  java_cp_for_release(emr_release)
                 ].flatten.compact.join(':'),
                 '"'
             ].join(''),

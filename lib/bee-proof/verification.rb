@@ -8,17 +8,9 @@ module BeeProof
   
     attr_reader :emr_release, :tasks
     attr_accessor :enable_hadoop, :quiet_output
-  
-    def self.for_emr_3
-      new('emr-3')
-    end
 
-    def self.for_emr_4
-      new('emr-4')
-    end
-
-    def self.for_emr_5
-      new('emr-5')
+    def self.for_release(emr_release)
+        new(emr_release)
     end
 
     def initialize(emr_release)
