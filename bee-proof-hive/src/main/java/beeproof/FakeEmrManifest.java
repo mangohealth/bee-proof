@@ -1,8 +1,9 @@
-package org.mangohealth.beeproof;
+package beeproof;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
@@ -15,16 +16,28 @@ public class FakeEmrManifest {
     class Task {
 
         private final String scriptPath;
+        private final String type;
         private final Map<String, String> hiveVariables;
 
-        protected Task(String scriptPath, Map<String, String> hiveVariables) {
+        protected Task(String scriptPath, String type, Map<String, String> hiveVariables) {
             this.scriptPath = scriptPath;
+            this.type = type;
             this.hiveVariables = hiveVariables;
         }
 
         public String getScriptPath() { return scriptPath; }
 
+        public String getRawType() { return type; }
+
         public Map<String, String> getHiveVariables() { return hiveVariables; }
+
+        public boolean isHive() {
+            return "hive".equalsIgnoreCase(type);
+        }
+
+        public boolean isSpark() {
+            return "spark".equalsIgnoreCase(type);
+        }
     }
 
     /**
@@ -38,6 +51,7 @@ public class FakeEmrManifest {
      */
     private final boolean verboseOutput;
 
+    private final List<String> auxJarPaths;
     private final List<Task> tasks;
 
     public FakeEmrManifest(String filePath) throws RuntimeException {
@@ -49,21 +63,41 @@ public class FakeEmrManifest {
             this.hadoopEnabled = obj.getBoolean("enableHadoop");
             this.verboseOutput = !obj.getBoolean("quietOutput");
 
+            this.auxJarPaths = new ArrayList<>();
+            if(obj.has("auxJars")) {
+                JSONArray rawAuxJars = obj.getJSONArray("auxJars");
+                for(int i = 0; i < rawAuxJars.length(); ++i) {
+                    String auxJarPath = rawAuxJars.getString(i);
+                    File auxJarFile = new File(auxJarPath);
+                    if(!auxJarFile.exists()) {
+                        throw new RuntimeException("Could not jar file to load @ " + auxJarPath);
+                    }
+                    if(!auxJarPath.endsWith(".jar")) {
+                        throw new RuntimeException("Should be a list of jars to load, but got:  " + auxJarPath);
+                    }
+                    auxJarPaths.add(auxJarPath);
+                }
+            }
+
+
             this.tasks = new ArrayList<Task>();
             JSONArray manifestTasks = obj.getJSONArray("tasks");
             for(int i = 0; i < manifestTasks.length(); ++i) {
                 JSONObject task = manifestTasks.getJSONObject(i);
                 String script = task.getString("script");
+                String scriptType = task.getString("type");
 
-                JSONObject hiveVariablesRaw = task.getJSONObject("variables");
                 Map<String, String> hiveVariables = new HashMap<String, String>();
-                Iterator keys = hiveVariablesRaw.keys();
-                while(keys.hasNext()) {
-                    String key = (String) keys.next();
-                    hiveVariables.put(key, hiveVariablesRaw.getString(key));
+                if(task.has("variables")) {
+                    JSONObject hiveVariablesRaw = task.getJSONObject("variables");
+                    Iterator keys = hiveVariablesRaw.keys();
+                    while(keys.hasNext()) {
+                        String key = (String) keys.next();
+                        hiveVariables.put(key, hiveVariablesRaw.getString(key));
+                    }
                 }
 
-                tasks.add(new Task(script, hiveVariables));
+                tasks.add(new Task(script, scriptType, hiveVariables));
             }
         }
         catch(Exception ex) {
@@ -74,6 +108,8 @@ public class FakeEmrManifest {
     public boolean isHadoopEnabled() { return hadoopEnabled; }
 
     public boolean isVerboseOutput() { return verboseOutput; }
+
+    public List<String> getAuxJarPaths() { return auxJarPaths; }
 
     public List<Task> getTasks() { return tasks; }
 

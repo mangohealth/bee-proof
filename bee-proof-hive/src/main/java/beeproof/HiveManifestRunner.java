@@ -1,4 +1,4 @@
-package org.mangohealth.beeproof;
+package beeproof;
 
 import com.google.common.collect.Sets;
 import org.apache.commons.io.FileUtils;
@@ -14,6 +14,9 @@ import org.apache.log4j.PatternLayout;
 import java.io.File;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
+import java.lang.reflect.Method;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.file.Paths;
 import java.util.Map;
 import java.util.Set;
@@ -23,7 +26,7 @@ import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.*;
 /**
  * Main entry point for running EMR-like task manifests.
  */
-public class ManifestRunner {
+public class HiveManifestRunner {
 
     private static final Set emrConfigs = Sets.newHashSet(
             "hive.optimize.s3.query"
@@ -32,8 +35,9 @@ public class ManifestRunner {
     private final PrintStream output;
     private final String manifestFilePath;
     private FakeEmrManifest manifest;
+    private boolean hiveIsReady = false;
 
-    public ManifestRunner(String manifestFilePath, PrintStream output) {
+    public HiveManifestRunner(String manifestFilePath, PrintStream output) {
         this.output = output;
         this.manifestFilePath = manifestFilePath;
     }
@@ -47,12 +51,13 @@ public class ManifestRunner {
             blockMapReduceTasks();
         }
 
-        patchCliLogging();
-        patchForEmrHiveConf();
-        initializeHiveSession();
+        // Load any jars that the manifest requested be in the system classpath
+        for(String auxJarPath : manifest.getAuxJarPaths()) {
+            loadJar(auxJarPath);
+        }
 
         for(FakeEmrManifest.Task task : manifest.getTasks()) {
-            executeScript(task.getScriptPath(), task.getHiveVariables());
+            executeHiveScript(task.getScriptPath(), task.getHiveVariables());
         }
     }
 
@@ -146,8 +151,8 @@ public class ManifestRunner {
                 "org.apache.hadoop.hive.ql.processors.SetProcessor",
                 "setConf",
                 "{ " +
-                        "$1 = org.mangohealth.beeproof.ManifestRunner.emrHiveConfStripper($1); " +
-                        "$2 = org.mangohealth.beeproof.ManifestRunner.emrHiveConfStripper($2); " +
+                        "$1 = org.mangohealth.beeproof.HiveManifestRunner.emrHiveConfStripper($1); " +
+                        "$2 = org.mangohealth.beeproof.HiveManifestRunner.emrHiveConfStripper($2); " +
                 "}"
         );
     }
@@ -217,7 +222,39 @@ public class ManifestRunner {
         }
     }
 
-    protected void executeScript(String scriptPath, Map<String, String> hiveVariables) {
+    /**
+     * Super hack to force main classloader to consider new jars at runtime.  Referenced from here:
+     *   https://stackoverflow.com/questions/60764/how-should-i-load-jars-dynamically-at-runtime
+     *
+     * Note that this is SUPER wonky and might not work in the future if Oracle patches this, but
+     * it works so ridiculously conveniently right now that I'm going to stick with it.  Because
+     * this is a kind of quality toolset, breaking the normal rules a bit seems ok!
+     */
+    private void loadJar(String path) {
+        try {
+            File file = new File(path);
+            URL url = file.toURI().toURL();
+            URLClassLoader classLoader = (URLClassLoader)ClassLoader.getSystemClassLoader();
+            Method method = URLClassLoader.class.getDeclaredMethod("addURL", URL.class);
+            method.setAccessible(true);
+            method.invoke(classLoader, url);
+        }
+        catch(Exception ex) {
+            throw new RuntimeException("Failed to load jar @ " + path, ex);
+        }
+    }
+
+    protected void setupHive() {
+        if(!hiveIsReady) {
+            patchCliLogging();
+            patchForEmrHiveConf();
+            initializeHiveSession();
+            this.hiveIsReady = true;
+        }
+    }
+
+    protected void executeHiveScript(String scriptPath, Map<String, String> hiveVariables) {
+        setupHive();
         try {
             CliDriver driver = new CliDriver();
             driver.setHiveVariables(hiveVariables);
@@ -242,10 +279,10 @@ public class ManifestRunner {
         long startTime = System.currentTimeMillis();
 
         try {
-            new ManifestRunner(args[0], new PrintStream(System.out, true, "UTF-8")).run();
+            new HiveManifestRunner(args[0], new PrintStream(System.out, true, "UTF-8")).run();
         }
         catch(UnsupportedEncodingException ex) {
-            throw new RuntimeException("Could not create ManifestRunner", ex);
+            throw new RuntimeException("Could not create HiveManifestRunner", ex);
         }
 
         System.out.println("> Total time:  " + (System.currentTimeMillis() - startTime) + "ms");

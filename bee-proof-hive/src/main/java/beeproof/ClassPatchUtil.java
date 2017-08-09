@@ -1,4 +1,4 @@
-package org.mangohealth.beeproof;
+package beeproof;
 
 import javassist.ClassPool;
 import javassist.CtClass;
