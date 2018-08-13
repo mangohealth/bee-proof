@@ -61,7 +61,7 @@ public class ManifestRunner {
      */
     protected FakeEmrManifest getManifest() {
         if(manifest == null) {
-            this.manifest = new FakeEmrManifest(manifestFilePath);
+            this.manifest = new FakeEmrManifest(manifestFilePath, output);
         }
 
         return manifest;
@@ -168,26 +168,37 @@ public class ManifestRunner {
      */
     protected void initializeHiveSession() {
         try {
-            FakeEmrManifest manifest = getManifest();
-            CliSessionState ss = new CliSessionState(new HiveConf(SessionState.class));
-            ss.setIsVerbose(manifest.isVerboseOutput());
-
             // TODO Make this configurable?  Default to somewhere special in /tmp?
             String workBaseDir = Paths.get("").toAbsolutePath().toString();
             String workingDir = Paths.get(workBaseDir, "bee-proof-tmp").toString();
             FileUtils.deleteDirectory(new File(workingDir));
             FileUtils.forceMkdir(new File(workingDir));
 
+            // Set these ASAP in case they affect Hive startup.  Also, this is a great place to set values for later
+            // versions of Hive since they will otherwise block builds for enum values specified below.
+            System.setProperty("hadoop.tmp.dir", Paths.get(workingDir, "hadoop_tmp").toString());
+            System.setProperty("mapred.system.dir", Paths.get(workingDir, "mapred_sys").toString());
+            System.setProperty("mapred.local.dir", Paths.get(workingDir, "mapred_local").toString());
+            System.setProperty("test.log.dir", Paths.get(workingDir, "test_logs").toString());
+            System.setProperty("derby.stream.error.file", Paths.get(workingDir, "derby.log").toString());
+            System.setProperty("datanucleus.schema.autoCreateAll", "true");
+            System.setProperty("hive.metastore.schema.verification", "false");
+            System.setProperty("hive.metastohive.server2.logging.operation.enabled", "false");
+
+            FakeEmrManifest manifest = getManifest();
+            CliSessionState ss = new CliSessionState(new HiveConf(SessionState.class));
+            ss.setIsVerbose(manifest.isVerboseOutput());
+
+            // Set these values more formally to assure that we're doing it right
             HiveConf conf = ss.getConf();
                 conf.setBoolVar(CLIIGNOREERRORS, false);
-                conf.setVar(METASTORECONNECTURLKEY, "jdbc:derby:" + Paths.get(workingDir, "metastore_db").toString() + ";create=true");
+                conf.setVar(METASTORECONNECTURLKEY, "jdbc:derby:memory:db;create=true");
                 conf.setVar(METASTOREWAREHOUSE, Paths.get(workingDir, "warehouse").toString());
                 conf.setVar(SCRATCHDIR, Paths.get(workingDir, "scratch").toString());
                 conf.setVar(LOCALSCRATCHDIR, Paths.get(workingDir, "local_scratch").toString());
                 conf.setVar(HIVEHISTORYFILELOC, Paths.get(workingDir, "tmp").toString());
                 conf.setBoolVar(HIVE_WAREHOUSE_SUBDIR_INHERIT_PERMS, true);
                 conf.setBoolVar(HIVESTATSAUTOGATHER, false);
-                conf.setBoolVar(HIVE_SERVER2_LOGGING_OPERATION_ENABLED, false);
                 conf.setBoolVar(HIVE_INFER_BUCKET_SORT, false);
                 conf.setBoolVar(HIVEMETADATAONLYQUERIES, false);
                 conf.setBoolVar(HIVEOPTINDEXFILTER, false);
@@ -197,20 +208,20 @@ public class ManifestRunner {
                 conf.setBoolVar(HIVE_RPC_QUERY_PLAN, true);
                 conf.setBoolVar(HIVE_SUPPORT_CONCURRENCY, false);
                 conf.setVar(METASTORE_CONNECTION_POOLING_TYPE, "None");
-                conf.setBoolVar(METASTORE_AUTO_CREATE_ALL, true);
 
-            System.setProperty("hadoop.tmp.dir", Paths.get(workingDir, "hadoop_tmp").toString());
-            System.setProperty("mapred.system.dir", Paths.get(workingDir, "mapred_sys").toString());
-            System.setProperty("mapred.local.dir", Paths.get(workingDir, "mapred_local").toString());
-            System.setProperty("test.log.dir", Paths.get(workingDir, "test_logs").toString());
-            System.setProperty("derby.stream.error.file", Paths.get(workingDir, "derby.log").toString());
-
+            // Wire session's I/O to match our configurable ones
             ss.in = System.in;
             ss.out = this.output;
             ss.info = this.output;
             ss.err = this.output;
 
             SessionState.start(ss);
+
+            if(manifest.isDebugOutput()) {
+                output.println(">>>>>>>> Current Hive Config:");
+                ss.getConf().getAllProperties().list(output);
+                output.println();
+            }
         }
         catch(Exception ex) {
             throw new RuntimeException("Could not initialize session state", ex);
