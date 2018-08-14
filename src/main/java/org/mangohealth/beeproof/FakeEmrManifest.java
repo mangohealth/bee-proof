@@ -3,6 +3,8 @@ package org.mangohealth.beeproof;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
@@ -38,16 +40,28 @@ public class FakeEmrManifest {
      */
     private final boolean verboseOutput;
 
+    /**
+     * Turns on a torrent of extra info that's probably only useful for debugging
+     */
+    private final boolean debugOutput;
+
     private final List<Task> tasks;
 
-    public FakeEmrManifest(String filePath) throws RuntimeException {
+    public FakeEmrManifest(String filePath, PrintStream output) throws RuntimeException {
         try {
             byte[] encoded = Files.readAllBytes(Paths.get(filePath));
-            String rawJson = new String(encoded, "UTF-8");
+            String rawJson = new String(encoded, StandardCharsets.UTF_8);
             JSONObject obj = new JSONObject(rawJson);
 
-            this.hadoopEnabled = obj.getBoolean("enableHadoop");
-            this.verboseOutput = !obj.getBoolean("quietOutput");
+            this.hadoopEnabled = obj.optBoolean("enableHadoop", false);
+            this.verboseOutput = obj.optBoolean("verboseOutput", true);
+            this.debugOutput = obj.optBoolean("debugOutput", false);
+
+            if(isDebugOutput()) {
+                output.println(">>>>>>>> Manifest received:");
+                output.println(rawJson);
+                output.println();
+            }
 
             this.tasks = new ArrayList<Task>();
             JSONArray manifestTasks = obj.getJSONArray("tasks");
@@ -74,6 +88,8 @@ public class FakeEmrManifest {
     public boolean isHadoopEnabled() { return hadoopEnabled; }
 
     public boolean isVerboseOutput() { return verboseOutput; }
+
+    public boolean isDebugOutput() { return debugOutput; }
 
     public List<Task> getTasks() { return tasks; }
 
