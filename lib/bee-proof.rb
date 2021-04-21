@@ -30,7 +30,7 @@ module BeeProof
   def self.run_for_release(emr_release, *params)
     cmd = 
         [
-            java_bin_path,
+            "'#{java_bin_path}'",
             '-Dfile.encoding=UTF-8',
             '-classpath',
             [ 
